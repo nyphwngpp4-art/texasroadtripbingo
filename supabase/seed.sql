@@ -1,16 +1,16 @@
 -- ============================================================================
 -- texasroadtripbingo — seed data
--- >>> EDIT THE FOUR PLAYER NAMES BELOW (first names only) before running. <<<
--- Run AFTER schema.sql, in the Supabase SQL editor.
+-- ALREADY APPLIED to the live project (2026-07-02) — kept as the rebuild
+-- fallback. Run AFTER schema.sql, in the Supabase SQL editor.
 -- Items mirror data/items.json — that file is the source of truth; if you
 -- change one, change the other.
 -- ============================================================================
 
 insert into public.players (name, role, team) values
-  ('Kid1',    'kid',    'girls'),    -- EDIT ME
-  ('Kid2',    'kid',    'girls'),    -- EDIT ME
-  ('Parent1', 'parent', 'parents'),  -- EDIT ME
-  ('Parent2', 'parent', 'parents');  -- EDIT ME
+  ('M', 'kid',    'girls'),
+  ('N', 'kid',    'girls'),
+  ('J', 'parent', 'parents'),
+  ('C', 'parent', 'parents');
 
 insert into public.items (name, emoji, points, claim_rule) values
   -- commons: 5 pts, once per player per day
