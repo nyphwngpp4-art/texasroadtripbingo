@@ -77,6 +77,7 @@ create index claims_game_day_idx  on public.claims (game_day);
 create or replace function public.claims_update_guard()
 returns trigger
 language plpgsql
+set search_path = ''  -- pinned per Supabase linter 0011
 as $$
 begin
   -- Core columns never change after insert. Column-level grants already block
