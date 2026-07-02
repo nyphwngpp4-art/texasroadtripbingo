@@ -1,0 +1,41 @@
+{
+  "_comment": "Starter items for the Chandler AZ → Lubbock TX drive and the month in Texas. Source of truth for supabase/seed.sql — if you edit this before Increment 0, regenerate the INSERTs in seed.sql to match. claim_rule values: per_player_per_day (each player can claim it once per day), first_per_day (first confirmed claim per day takes it), once_per_trip (one confirmed claim for the whole trip).",
+  "_point_tiers": {
+    "5": "commons — you'll see these all day",
+    "10": "uncommons — a few per day if you're watching",
+    "25": "rares — first claimer only, stay alert",
+    "50": "epics — once per trip, bragging rights"
+  },
+  "items": [
+    { "slug": "out-of-state-plate", "name": "Out-of-state license plate", "emoji": "🚗", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "water-tower", "name": "Water tower with a town name", "emoji": "💧", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "freight-train", "name": "Freight train", "emoji": "🚂", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "hawk-on-pole", "name": "Hawk on a pole or fence post", "emoji": "🦅", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "horses", "name": "Horses in a field", "emoji": "🐴", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "cow-herd", "name": "Herd of cows", "emoji": "🐄", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "hay-hauler", "name": "Truck hauling hay bales", "emoji": "🚛", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "rv-camper", "name": "RV or camper trailer", "emoji": "🏕️", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "biker-pack", "name": "Group of 3 or more motorcycles", "emoji": "🏍️", "points": 5, "claim_rule": "per_player_per_day" },
+    { "slug": "saguaro", "name": "Saguaro cactus (Arizona only!)", "emoji": "🌵", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "longhorn", "name": "Real longhorn — horns required", "emoji": "🤘", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "wind-farm", "name": "Wind turbine farm", "emoji": "🌬️", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "pump-jack", "name": "Oil pump jack actually pumping", "emoji": "🛢️", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "cotton-field", "name": "Cotton field", "emoji": "☁️", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "tumbleweed", "name": "Tumbleweed on the move", "emoji": "🧹", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "dust-devil", "name": "Dust devil", "emoji": "🌪️", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "grain-elevator", "name": "Grain elevator", "emoji": "🌾", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "dairy-queen", "name": "Dairy Queen sign", "emoji": "🍦", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "whataburger", "name": "Whataburger", "emoji": "🍔", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "pecan-orchard", "name": "Pecan orchard in rows", "emoji": "🌳", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "adobe-building", "name": "Adobe building", "emoji": "🧱", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "historical-marker", "name": "Roadside historical marker", "emoji": "📜", "points": 10, "claim_rule": "per_player_per_day" },
+    { "slug": "border-checkpoint", "name": "Border Patrol checkpoint", "emoji": "🛂", "points": 25, "claim_rule": "first_per_day" },
+    { "slug": "roadrunner", "name": "Real roadrunner (the bird!)", "emoji": "🐦", "points": 25, "claim_rule": "first_per_day" },
+    { "slug": "alien-ufo", "name": "Anything alien or UFO themed", "emoji": "👽", "points": 25, "claim_rule": "first_per_day" },
+    { "slug": "chile-ristra", "name": "Chile ristra hanging up", "emoji": "🌶️", "points": 25, "claim_rule": "first_per_day" },
+    { "slug": "long-train", "name": "Train with 50+ cars — count them!", "emoji": "🔢", "points": 25, "claim_rule": "first_per_day" },
+    { "slug": "welcome-nm", "name": "Welcome to New Mexico state line sign", "emoji": "🎈", "points": 50, "claim_rule": "once_per_trip" },
+    { "slug": "welcome-tx", "name": "Welcome to Texas state line sign", "emoji": "⭐", "points": 50, "claim_rule": "once_per_trip" },
+    { "slug": "bucees", "name": "Buc-ee's — any sighting counts", "emoji": "🦫", "points": 50, "claim_rule": "once_per_trip" }
+  ]
+}
