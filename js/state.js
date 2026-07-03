@@ -25,8 +25,6 @@ const AppState = (() => {
     currentPlayerId: localStorage.getItem(PLAYER_STORAGE_KEY) || null,
   };
 
-  let flushing = false;
-
   // ---- player identity -----------------------------------------------
 
   function setCurrentPlayer(playerId) {
@@ -88,15 +86,51 @@ const AppState = (() => {
     return AppClaims.effectiveStatus(claim, state.claims, itemById(claim.item_id));
   }
 
+  function effectivePoints(claim) {
+    const item = itemById(claim.item_id);
+    return (item ? item.points : 0) + claim.points_adjustment;
+  }
+
   // D4: score is a fold over confirmed, non-superseded claims — nothing
-  // stored anywhere.
-  function scoreForPlayer(playerId) {
+  // stored anywhere. onlyToday scopes it to the current local game day for
+  // the "today" scoreboard view; omit it for the whole-trip total.
+  function scoreForPlayer(playerId, { onlyToday = false } = {}) {
+    const today = AppClaims.localGameDay();
     return state.claims
-      .filter((c) => c.claimer_id === playerId && claimStatus(c) === 'confirmed')
-      .reduce((sum, c) => {
-        const item = itemById(c.item_id);
-        return sum + (item ? item.points : 0) + c.points_adjustment;
-      }, 0);
+      .filter(
+        (c) =>
+          c.claimer_id === playerId &&
+          claimStatus(c) === 'confirmed' &&
+          (!onlyToday || c.game_day === today)
+      )
+      .reduce((sum, c) => sum + effectivePoints(c), 0);
+  }
+
+  // Players sorted high-to-low, for the scoreboard view.
+  function scoreboard({ onlyToday = false } = {}) {
+    return state.players
+      .map((p) => ({ player: p, score: scoreForPlayer(p.id, { onlyToday }) }))
+      .sort((a, b) => b.score - a.score);
+  }
+
+  function canonicalClaimsForItem(itemId) {
+    return state.claims.filter((c) => c.item_id === itemId && claimStatus(c) !== 'superseded');
+  }
+
+  // D5 read side (ACCEPTANCE 3.5): what existing claim, if any, should block
+  // a *new* claim attempt on this item for this player right now. Mirrors
+  // AppClaims.groupKey's scoping exactly, so "blocked" and "superseded"
+  // (what actually happens if they claim anyway) never disagree.
+  function blockingClaimForItem(item, playerId) {
+    const today = AppClaims.localGameDay();
+    const canonical = canonicalClaimsForItem(item.id);
+    if (item.claim_rule === 'once_per_trip') {
+      return canonical[0] || null;
+    }
+    if (item.claim_rule === 'first_per_day') {
+      return canonical.find((c) => c.game_day === today) || null;
+    }
+    return canonical.find((c) => c.game_day === today && c.claimer_id === playerId) || null;
   }
 
   function upsertClaimLocal(claim) {
@@ -197,10 +231,31 @@ const AppState = (() => {
 
   // Claims flush before confirms (D3): a queued confirm's target claim
   // might also be sitting in this same queue after an all-offline round.
-  async function flushQueue() {
-    if (flushing) return;
-    flushing = true;
-    try {
+  //
+  // Concurrent callers share the same in-flight promise rather than no-op
+  // on top of each other — reconcile() awaits this before fetching, and a
+  // caller that got a silent no-op would fetch before the insert it was
+  // waiting on actually happened. rerunRequested handles the case where a
+  // new entry is enqueued *after* this pass already snapshotted the queue:
+  // one more pass runs before the shared promise resolves, so nothing
+  // enqueued during a flush has to wait for a separate trigger to go out.
+  let flushPromise = null;
+  let rerunRequested = false;
+
+  function flushQueue() {
+    if (flushPromise) {
+      rerunRequested = true;
+      return flushPromise;
+    }
+    flushPromise = runFlushPasses().finally(() => {
+      flushPromise = null;
+    });
+    return flushPromise;
+  }
+
+  async function runFlushPasses() {
+    do {
+      rerunRequested = false;
       const ordered = [
         ...state.queue.filter((e) => e.type === 'claim'),
         ...state.queue.filter((e) => e.type === 'confirm'),
@@ -208,13 +263,11 @@ const AppState = (() => {
       for (const entry of ordered) {
         if (!state.queue.find((e) => e.id === entry.id)) continue; // dequeued mid-loop
         const result = await sendQueueEntry(entry);
-        if (!result.ok && result.offline) break; // stop; retry next tick/reconnect
+        if (!result.ok && result.offline) return; // stop entirely; retry next tick/reconnect
         if (!result.ok) console.warn('Dropping unsendable queue entry', entry, result.error);
         dequeue(entry.id);
       }
-    } finally {
-      flushing = false;
-    }
+    } while (rerunRequested);
   }
 
   // ---- reconciliation (D3) -----------------------------------------------
@@ -250,7 +303,11 @@ const AppState = (() => {
     playerName,
     itemById,
     claimStatus,
+    effectivePoints,
     scoreForPlayer,
+    scoreboard,
+    canonicalClaimsForItem,
+    blockingClaimForItem,
     isQueued,
     enqueueClaim,
     enqueueConfirm,
