@@ -2,7 +2,12 @@
 // files, so the board still *opens* if iOS killed the tab in a dead zone.
 // Queued play (increment 2's offline queue) picks up from there — this file
 // only makes the shell load; it has no game logic.
-const CACHE_NAME = 'trb-shell-v1';
+// Bump this on every deploy that changes a precached file (index.html,
+// manifest.json, any js/* or icons/*). The browser detects a byte change to
+// this file, installs the new SW, and activate() below deletes the old
+// cache — that's what actually gets already-visited devices off a stale
+// cached file, since fetch() below never revalidates a cache hit.
+const CACHE_NAME = 'trb-shell-v2';
 const SHELL_FILES = [
   './',
   './index.html',
