@@ -1,7 +1,8 @@
 // All rendering lives here; no game logic (that's claims.js/state.js).
-// Increment 1 is deliberately ugly: player picker, flat item list, claim
-// button, incoming-claim banner with a live countdown, confirm button, and a
-// derived-status log. Real UI polish is increment 3.
+// Increment 1 was deliberately ugly (player picker, flat item list, claim/
+// confirm, derived status log); increment 2 adds offline behavior on top:
+// pending-sync badges, reconcile-on-reconnect, reconcile-on-visible. Real UI
+// polish is increment 3.
 
 const AppUI = (() => {
   const root = document.getElementById('app');
@@ -70,6 +71,8 @@ const AppUI = (() => {
           <button id="switch-player" class="text-sm text-slate-400 underline">switch</button>
         </header>
 
+        <div id="sync-banner" class="hidden rounded-lg bg-slate-100 text-slate-500 text-sm text-center py-1"></div>
+
         <div id="incoming-claims" class="flex flex-col gap-2"></div>
 
         <h2 class="text-lg font-semibold">Spot something</h2>
@@ -88,12 +91,15 @@ const AppUI = (() => {
     renderItemList();
     renderIncomingClaims();
     renderClaimLog();
+    renderSyncBanner();
 
     if (!tickInterval) {
       tickInterval = setInterval(() => {
         renderIncomingClaims();
         renderClaimLog();
+        renderSyncBanner();
         refreshScore();
+        if (AppState.state.queue.length) AppState.flushQueue(); // defensive fallback flush
       }, 1000);
     }
   }
@@ -102,6 +108,18 @@ const AppUI = (() => {
     const me = AppState.currentPlayer();
     const scoreEl = document.getElementById('my-score');
     if (me && scoreEl) scoreEl.textContent = AppState.scoreForPlayer(me.id);
+  }
+
+  function renderSyncBanner() {
+    const banner = document.getElementById('sync-banner');
+    if (!banner) return;
+    const pending = AppState.state.queue.length;
+    if (pending === 0) {
+      banner.classList.add('hidden');
+      return;
+    }
+    banner.classList.remove('hidden');
+    banner.textContent = `⏳ ${pending} update${pending === 1 ? '' : 's'} waiting to sync...`;
   }
 
   function renderItemList() {
@@ -123,22 +141,15 @@ const AppUI = (() => {
       `;
       const btn = document.createElement('button');
       btn.className =
-        'min-h-[60px] min-w-[88px] rounded-lg bg-amber-500 text-white font-bold active:bg-amber-600 disabled:opacity-50';
+        'min-h-[60px] min-w-[88px] rounded-lg bg-amber-500 text-white font-bold active:bg-amber-600';
       btn.textContent = 'Claim';
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        btn.textContent = '...';
-        try {
-          const claim = await AppClaims.claimItem(item.id, AppState.currentPlayer().id);
-          AppState.upsertClaimLocal(claim);
-          renderIncomingClaims();
-          renderClaimLog();
-        } catch (err) {
-          alert(`Couldn't claim that: ${err.message}`);
-        } finally {
-          btn.disabled = false;
-          btn.textContent = 'Claim';
-        }
+      btn.addEventListener('click', () => {
+        // Always instant: builds the row, applies it optimistically, queues
+        // it, and kicks a background flush. Never blocks on the network.
+        AppState.enqueueClaim(item.id, AppState.currentPlayer().id);
+        renderIncomingClaims();
+        renderClaimLog();
+        renderSyncBanner();
       });
       row.appendChild(btn);
       container.appendChild(row);
@@ -151,7 +162,7 @@ const AppUI = (() => {
     const me = AppState.currentPlayer();
     if (!me) return;
     const pending = AppState.state.claims.filter(
-      (c) => c.claimer_id !== me.id && AppClaims.claimStatus(c) === 'pending'
+      (c) => c.claimer_id !== me.id && AppState.claimStatus(c) === 'pending'
     );
     container.innerHTML = '';
     pending.forEach((claim) => {
@@ -172,14 +183,12 @@ const AppUI = (() => {
       btn.className =
         'min-h-[60px] min-w-[88px] rounded-lg bg-emerald-600 text-white font-bold active:bg-emerald-700 disabled:opacity-50';
       btn.textContent = 'Confirm';
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        try {
-          await AppClaims.confirmClaim(claim, me.id);
-        } catch (err) {
-          alert(`Couldn't confirm: ${err.message}`);
-          btn.disabled = false;
-        }
+      btn.addEventListener('click', () => {
+        AppState.enqueueConfirm(claim, me.id);
+        renderIncomingClaims();
+        renderClaimLog();
+        renderSyncBanner();
+        refreshScore();
       });
       banner.appendChild(btn);
       container.appendChild(banner);
@@ -199,14 +208,19 @@ const AppUI = (() => {
       confirmed: 'text-emerald-600',
       expired: 'text-slate-400',
       denied: 'text-red-500',
+      superseded: 'text-slate-400',
+    };
+    const statusLabel = {
+      superseded: 'beaten to it',
     };
     sorted.slice(0, 20).forEach((claim) => {
       const item = AppState.itemById(claim.item_id);
-      const status = AppClaims.claimStatus(claim);
-      const label =
+      const status = AppState.claimStatus(claim);
+      let label =
         status === 'pending'
           ? `${Math.ceil(AppClaims.msRemaining(claim) / 1000)}s left`
-          : status;
+          : statusLabel[status] || status;
+      if (claim._pendingSync) label = `⏳ ${label} (sending)`;
       const row = document.createElement('div');
       row.className = 'flex items-center justify-between text-sm border-b border-slate-100 py-2';
       row.innerHTML = `
@@ -226,13 +240,42 @@ const AppUI = (() => {
     await Promise.all([AppState.loadPlayers(), AppState.loadItems(), AppState.loadClaims()]);
     render();
 
+    // Anything left in the queue from a killed tab / previous offline
+    // session (D3, ACCEPTANCE 2.3) gets a flush attempt right away.
+    AppState.flushQueue();
+
     AppSupabase.subscribeToTable('claims', (payload) => {
       if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
         AppState.upsertClaimLocal(payload.new);
+        AppState.updateLastSeenSyncedAt([payload.new]);
         if (AppState.state.currentPlayerId) {
           renderIncomingClaims();
           renderClaimLog();
+          renderSyncBanner();
         }
+      }
+    });
+
+    // Realtime subscriptions miss everything during an outage (D3). Catch
+    // back up whenever connectivity returns or the tab comes back to the
+    // foreground (iOS kills WebSockets in backgrounded home-screen apps).
+    window.addEventListener('online', async () => {
+      await AppState.reconcile();
+      if (AppState.state.currentPlayerId) {
+        renderIncomingClaims();
+        renderClaimLog();
+        renderSyncBanner();
+        refreshScore();
+      }
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible') return;
+      await AppState.reconcile();
+      if (AppState.state.currentPlayerId) {
+        renderIncomingClaims();
+        renderClaimLog();
+        renderSyncBanner();
+        refreshScore();
       }
     });
   }
