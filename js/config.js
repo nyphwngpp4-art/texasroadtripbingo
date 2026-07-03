@@ -3,5 +3,5 @@
 // by Row Level Security policies on the database, not by hiding this key.
 const SUPABASE_CONFIG = {
   url: "https://ofyjmydqhpqeqzvgmtpb.supabase.co",
-  publishableKey: "sb_publishable_AKRZWELlbyJWwzZCXMvWw_WapctXqQ"
+  publishableKey: "sb_publishable__AKRZWELlbyJWwzZCXMvWw_WapctXqQ"
 };

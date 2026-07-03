@@ -374,10 +374,27 @@ const AppUI = (() => {
 
   // ---- boot -----------------------------------------------------------
 
+  function renderBootError(err) {
+    console.error('Failed to start', err);
+    root.innerHTML = `
+      <div class="p-6 flex flex-col items-center gap-4 text-center">
+        <h1 class="text-xl font-bold text-red-600">Couldn't load the game</h1>
+        <p class="text-slate-500 text-sm">${escapeHtml(err && err.message ? err.message : String(err))}</p>
+        <button id="retry-boot" class="min-h-[48px] px-6 rounded-lg bg-sky-600 text-white font-semibold">Try again</button>
+      </div>
+    `;
+    document.getElementById('retry-boot').addEventListener('click', boot);
+  }
+
   async function boot() {
     root.innerHTML = '<div class="p-6 text-center text-slate-400">Loading...</div>';
-    await AppSupabase.measureServerTimeOffset();
-    await Promise.all([AppState.loadPlayers(), AppState.loadItems(), AppState.loadClaims()]);
+    try {
+      await AppSupabase.measureServerTimeOffset();
+      await Promise.all([AppState.loadPlayers(), AppState.loadItems(), AppState.loadClaims()]);
+    } catch (err) {
+      renderBootError(err);
+      return;
+    }
     render();
 
     // Anything left in the queue from a killed tab / previous offline
