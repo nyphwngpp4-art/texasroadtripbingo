@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Texas Road Trip Bingo</title>
+
+  <!-- Add-to-homescreen (increment 3, ACCEPTANCE 3.7): a saved icon opens
+       full-screen with no Safari chrome, under this name. -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#002868" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TX Bingo" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" href="icons/icon-180.png" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans">
+  <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-sm"></div>
+
+  <!-- Load order matters: each file attaches to a global namespace object
+       (no build step, no module bundler) and depends on the ones before it. -->
+  <script src="js/supabase.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/claims.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // App-shell cache (increment 3, ACCEPTANCE 3.6) — register after load so
+    // it never delays first paint. Safe to skip silently where unsupported.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
