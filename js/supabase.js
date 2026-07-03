@@ -15,19 +15,27 @@ const AppSupabase = (() => {
   let serverOffsetMs = 0; // serverNow - Date.now(); see measureServerTimeOffset()
 
   async function measureServerTimeOffset() {
-    const before = Date.now();
-    const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/items?select=id&limit=1`, {
-      headers: { apikey: SUPABASE_CONFIG.publishableKey },
-    });
-    const after = Date.now();
-    const serverDateHeader = res.headers.get('date');
-    if (!serverDateHeader) return; // offset stays 0 — degrades gracefully
-    const serverTime = new Date(serverDateHeader).getTime();
-    const roundTrip = after - before;
-    // The Date header is stamped when the response leaves the server; assume
-    // it left roughly at the midpoint of the round trip. A few hundred ms of
-    // error doesn't matter against a 60s window with a 15s grace.
-    serverOffsetMs = serverTime - (before + roundTrip / 2);
+    // Best-effort only: offset already defaults to 0, and a transient
+    // failure here (offline on first load, a blocked request, whatever)
+    // must never stop the rest of boot() from loading real game data.
+    try {
+      const before = Date.now();
+      const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/items?select=id&limit=1`, {
+        headers: { apikey: SUPABASE_CONFIG.publishableKey },
+      });
+      const after = Date.now();
+      const serverDateHeader = res.headers.get('date');
+      if (!serverDateHeader) return; // offset stays 0 — degrades gracefully
+      const serverTime = new Date(serverDateHeader).getTime();
+      const roundTrip = after - before;
+      // The Date header is stamped when the response leaves the server;
+      // assume it left roughly at the midpoint of the round trip. A few
+      // hundred ms of error doesn't matter against a 60s window with a 15s
+      // grace.
+      serverOffsetMs = serverTime - (before + roundTrip / 2);
+    } catch (err) {
+      console.warn('measureServerTimeOffset failed, using offset 0', err);
+    }
   }
 
   function nowServer() {
